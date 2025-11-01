@@ -1,12 +1,10 @@
 package net.itzq.tool.mybatisgenerator.gui;
 
-;;;;;;
-;import javax.swing.*;
-;import java.awt.datatransfer.Clipboard;
+import javax.swing.*;
+import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.*;
-;
 
 /**
  *

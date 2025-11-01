@@ -19,6 +19,8 @@ public abstract class AbstractBuilder {
 
     String tableAlias = "a";
 
+    String templateContent;
+
     String templateFileName;
 
     protected Set<String> importList = new HashSet<>();
@@ -193,5 +195,13 @@ public abstract class AbstractBuilder {
         }
 
         return arr;
+    }
+
+    public String getTemplateContent() {
+        return templateContent;
+    }
+
+    public void setTemplateContent(String templateContent) {
+        this.templateContent = templateContent;
     }
 }

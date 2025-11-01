@@ -8,9 +8,6 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.psi.PsiElement;
 import net.itzq.tool.mybatisgenerator.gui.MainForm;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 /**
  *
  * @discription
@@ -43,20 +40,5 @@ public class MainAction extends AnAction {
     public static void showDialog(AnActionEvent e) {
         MainForm mainForm = new MainForm(e);
         mainForm.setThis(mainForm);
-    }
-
-    public static void main(String[] args) {
-
-        String txt = "package net.itzq.tool.mybatis_generator.action;import com.intellij.database.model.DasColumn;\n"
-                + "import com.intellij.database.psi.DbTable;";
-
-        String reg = "(package)\\s+([^\\.\\s]+(\\.[^\\.\\s]+)*[;])";
-        Pattern pattern = Pattern.compile(reg);
-        Matcher matcher = pattern.matcher(txt);
-        while (matcher.find()) {
-            String pkg = matcher.group(2);
-            System.out.println(pkg.substring(0, pkg.length() - 1));
-        }
-
     }
 }

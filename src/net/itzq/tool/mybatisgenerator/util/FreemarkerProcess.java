@@ -41,6 +41,14 @@ public class FreemarkerProcess {
         return process(path, null);
     }
 
+    public static String processTemplate(String templateContent, Map params) {
+        Template template = FreemarkerProcess.createTemplate(templateContent);
+        if (params == null) {
+            params = new LinkedHashMap();
+        }
+        return processTemplate(template, params);
+    }
+
     public static String process(String path, Map params) {
         String templateString = TemplateLoader.readTemplateFile(path);
         Template template = FreemarkerProcess.createTemplate(templateString);
@@ -65,8 +73,16 @@ public class FreemarkerProcess {
             template.process(params, stringWriter);
         } catch (Exception e) {
             e.printStackTrace();
-            return "";
+            return getExceptionInfo(e);
         }
         return stringWriter.toString();
+    }
+
+    public static String getExceptionInfo(Throwable ex) {
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter writer = new PrintWriter(stringWriter);
+        ex.printStackTrace(writer);
+        StringBuffer buffer = stringWriter.getBuffer();
+        return buffer.toString();
     }
 }

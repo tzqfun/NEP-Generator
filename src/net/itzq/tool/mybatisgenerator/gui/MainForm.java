@@ -1,5 +1,9 @@
 package net.itzq.tool.mybatisgenerator.gui;
 
+import com.intellij.database.model.DasColumn;
+import com.intellij.database.psi.DbTable;
+import com.intellij.database.util.DasUtil;
+import com.intellij.ide.util.PackageChooserDialog;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
@@ -7,23 +11,20 @@ import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
-import com.intellij.psi.PsiFile;
-import net.itzq.tool.mybatisgenerator.TemplateLoader;
-import net.itzq.tool.mybatisgenerator.util.StrUtil;
-import com.intellij.database.model.DasColumn;
-import com.intellij.database.psi.DbTable;
-import com.intellij.database.util.DasUtil;
-import com.intellij.ide.util.PackageChooserDialog;
-import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiPackage;
 import com.intellij.util.containers.JBIterable;
 import net.itzq.tool.mybatisgenerator.ConvertConfig;
 import net.itzq.tool.mybatisgenerator.DataConvert;
 import net.itzq.tool.mybatisgenerator.Generator;
+import net.itzq.tool.mybatisgenerator.TemplateLoader;
+import net.itzq.tool.mybatisgenerator.util.CrossPlatformAppDataUtil;
+import net.itzq.tool.mybatisgenerator.util.StrUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
@@ -31,6 +32,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -66,12 +68,14 @@ public class MainForm extends JFrame {
     private JButton copyFileNameButton;
     private JButton genControlButton;
     private JButton genServiceButton;
-    private JRadioButton modelMall;
-    private JRadioButton modelNep;
-    private JRadioButton modelNep3x;
+    private JRadioButton modeNep;
     private JButton genVueList;
     private JButton genVueForm;
     private JButton genALLButton;
+    private JButton configButton;
+    private JButton openDir;
+    private JPanel templateSelectPanel;
+    private JButton guideButton;
 
     private String originalStr;
     private boolean topFrame = true;
@@ -80,18 +84,22 @@ public class MainForm extends JFrame {
     private AnActionEvent anActionEvent;
     private Project project;
     private PsiElement[] psiElements;
+    private boolean editMode = false;
+    private String editFilePath = null;
 
     private String winTitle = "Mybatis 开发助手 ";
 
+    ButtonGroup group = new ButtonGroup();
+    String templateGroupDirName = "nep2x";
+
     public MainForm(AnActionEvent anActionEvent) {
 
-        String text = "";
-        originalStr = text;
+        originalStr = "";
 
         setAlwaysOnTop(topFrame);
         topWinCheckBox.setSelected(topFrame);
 
-        textArea1.setText(text);
+        textArea1.setText("");
         textArea1.setCaretPosition(0);
 
         setContentPane(panel1);
@@ -118,6 +126,8 @@ public class MainForm extends JFrame {
         textArea1.addMouseListener(menu);
         textArea1.add(menu);
 
+        initSelectPanel();
+
         copyButton.addActionListener(actionEvent -> {
             JTextArea t = new JTextArea();
             t.setText(originalStr);
@@ -142,18 +152,6 @@ public class MainForm extends JFrame {
             topWinCheckBox.setSelected(topFrame);
         });
 
-        modelNep.addActionListener(actionEvent -> {
-            radioReset();
-            modelNep.setSelected(true);
-        });
-        modelMall.addActionListener(actionEvent -> {
-            radioReset();
-            modelMall.setSelected(true);
-        });
-        modelNep3x.addActionListener(actionEvent -> {
-            radioReset();
-            modelNep3x.setSelected(true);
-        });
         genALLButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -239,12 +237,155 @@ public class MainForm extends JFrame {
                 dialog.setVisible(true);
             }
         });
+        configButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                // 退出编辑
+                if (editMode) {
+
+                    boolean exit = true;
+                    String templateContent = textArea1.getText();
+
+                    if (editFilePath != null && StringUtils.isNotBlank(templateContent)) {
+                        // 显示自定义确认对话框
+                        Object[] options = { "保存", "不保存", "取消" };
+                        int result = JOptionPane.showOptionDialog(_this,
+                                "模板内容已修改，是否保存？\n\n 模版文件：\n" + editFilePath,
+                                "保存确认",
+                                JOptionPane.YES_NO_CANCEL_OPTION,
+                                JOptionPane.QUESTION_MESSAGE,
+                                null,
+                                options,
+                                options[0]
+                                // 默认选择"保存"
+                        );
+
+                        if (result == JOptionPane.YES_OPTION || result == JOptionPane.NO_OPTION) {
+                            if (result == JOptionPane.YES_OPTION) {
+
+                                Path path = Paths.get(editFilePath);
+                                try {
+                                    Files.write(path, templateContent.getBytes(StandardCharsets.UTF_8));
+                                    // 保存成功提示
+                                    JOptionPane.showMessageDialog(_this,
+                                            "模板保存成功！",
+                                            "保存成功",
+                                            JOptionPane.INFORMATION_MESSAGE);
+                                } catch (IOException ex) {
+                                    ex.printStackTrace();
+                                    JOptionPane.showMessageDialog(_this,
+                                            "保存失败：\n" + ex.getMessage(),
+                                            "保存失败",
+                                            JOptionPane.ERROR_MESSAGE);
+                                }
+
+                            }
+                        } else {
+                            exit = false;
+                        }
+                    }
+
+                    if (exit) {
+                        originalStr = "";
+                        textArea1.setText(originalStr);
+                        textArea1.setBackground(new Color(255, 255, 255));
+                        editMode = false;
+                        editFilePath = null;
+                        configButton.setText("编辑模版");
+                    }
+
+                } else {
+                    textArea1.setBackground(new Color(200, 237, 204));
+                    originalStr = "";
+                    textArea1.setText(originalStr);
+                    editMode = true;
+                    editFilePath = null;
+                    configButton.setText("退出编辑");
+                }
+            }
+        });
+
+        openDir.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+
+                    String dataPath = CrossPlatformAppDataUtil.getOrCreateAppDataPathDefault(null);
+                    File folder = new File(dataPath);
+
+                    // 检查文件夹是否存在
+                    if (folder.exists() && folder.isDirectory()) {
+                        Desktop.getDesktop().open(folder);
+                    } else {
+                        Messages.showErrorDialog("文件夹不存在: " + dataPath, "打开失败");
+                    }
+                } catch (IOException ex) {
+                    Messages.showErrorDialog("无法打开文件夹: " + ex.getMessage(), "错误");
+                } catch (Exception ex) {
+                    Messages.showErrorDialog("系统不支持此操作: " + ex.getMessage(), "错误");
+                }
+            }
+        });
+        guideButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String readme = TemplateLoader.readTemplateFile("readme.txt");
+                textArea1.setText(readme);
+                textArea1.setCaretPosition(0);
+            }
+        });
     }
 
-    public void radioReset() {
-        modelMall.setSelected(false);
-        modelNep.setSelected(false);
-        modelNep3x.setSelected(false);
+    private void initSelectPanel() {
+
+        templateSelectPanel.setLayout(new GridLayout(1, 6, 10, 5));
+        templateSelectPanel.setBorder(BorderFactory.createTitledBorder("模板选择"));
+
+        templateSelectPanel.removeAll();
+
+
+
+        String dataPath = CrossPlatformAppDataUtil.getOrCreateAppDataPathDefault(null);
+        File dataDir = new File(dataPath);
+        // 读取所有文件夹
+        File[] folders = dataDir.listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File file) {
+                return file.isDirectory() && !file.isHidden() && !"nep2x".equals(file.getName());
+            }
+        });
+
+        if (folders != null && folders.length > 0) {
+            int totalFolders = folders.length + 1;
+            int columns = 6;
+            int rows = (int) Math.ceil((double) totalFolders / columns);
+
+            templateSelectPanel.setLayout(new GridLayout(rows, columns, 10, 5));
+
+            // 按名称排序
+            Arrays.sort(folders);
+
+            for (File folder : folders) {
+                JRadioButton radioButton = new JRadioButton();
+                radioButton.setText(folder.getName());
+                // radioButton.setToolTipText(folder.getAbsolutePath());
+                group.add(radioButton);
+                templateSelectPanel.add(radioButton);
+            }
+
+
+        }
+        group.add(modeNep);
+        templateSelectPanel.add(modeNep);
+
+        // 默认选择第一个
+        if (templateSelectPanel.getComponentCount() > 0) {
+            ((JRadioButton) templateSelectPanel.getComponent(0)).setSelected(true);
+        }
+
+        templateSelectPanel.revalidate();
+        templateSelectPanel.repaint();
     }
 
     public void initMain(AnActionEvent anActionEvent) {
@@ -358,19 +499,78 @@ public class MainForm extends JFrame {
     }
 
     public String genButtonClick(String text) {
-        List<String> templateName = new ArrayList<>();
-        if (modelMall.isSelected()) {
-            templateName.add("mall");
-        } else if (modelNep3x.isSelected()) {
-            templateName.add("nep3x");
-        } else if (modelNep.isSelected()) {
-            templateName.add("nep2x");
+
+        if (modeNep.isSelected()) {
+            templateGroupDirName = "nep2x";
+        } else {
+            Enumeration<AbstractButton> allRadioButton = group.getElements();
+            while (allRadioButton.hasMoreElements()) {
+                JRadioButton button = (JRadioButton) allRadioButton.nextElement();
+                if (button.isSelected()) {
+                    templateGroupDirName = button.getText();
+                    break;
+                }
+            }
         }
-        templateName.add(text);
 
-        String fileName = StringUtils.join(templateName, "-");
+        return generate(text);
+    }
 
-        return generate(fileName);
+    public String generate(String action) {
+        ConvertConfig convertConfig = getConvertConfig();
+        Generator g = new Generator(convertConfig);
+        String txt = "";
+
+        if (StrUtil.endsWithAnyIgnoreCase(action, "entity")) {
+            setTitle(winTitle + convertConfig.getClassName() + "Entity");
+        }
+        if (StrUtil.endsWithAnyIgnoreCase(action, "mapper")) {
+            setTitle(winTitle + convertConfig.getClassName() + "Mapper");
+        }
+        if (StrUtil.endsWithAnyIgnoreCase(action, "xml")) {
+            setTitle(winTitle + convertConfig.getClassName() + "Mapper.xml");
+        }
+        if (StrUtil.endsWithAnyIgnoreCase(action, "controller")) {
+            setTitle(winTitle + convertConfig.getClassName() + "Controller");
+        }
+        if (StrUtil.endsWithAnyIgnoreCase(action, "service")) {
+            setTitle(winTitle + convertConfig.getClassName() + "Service");
+        }
+        if (StrUtil.endsWithAnyIgnoreCase(action, "vueform")) {
+            setTitle(winTitle + getClassNameLower(convertConfig.getClassName()) + "Form.vue");
+        }
+        if (StrUtil.endsWithAnyIgnoreCase(action, "vuelist")) {
+            setTitle(winTitle + getClassNameLower(convertConfig.getClassName()) + "List.vue");
+        }
+
+        String TemplateFileName = action + ".txt";
+
+        String templateContent = null;
+        try {
+            templateContent = TemplateLoader.readLocalTemplateFile(templateGroupDirName, TemplateFileName);
+
+            if (StringUtils.isNotBlank(templateContent)) {
+
+                if (editMode) {
+                    txt = templateContent;
+                    String dataPath = CrossPlatformAppDataUtil.getOrCreateAppDataPathDefault(templateGroupDirName);
+                    editFilePath = dataPath + "/" + TemplateFileName;
+                } else {
+                    txt = g.genCode(templateGroupDirName, TemplateFileName, templateContent);
+                }
+            } else {
+                txt = "IO错误：模版为空";
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            txt = "IO错误：读取模版失败。";
+        }
+
+        originalStr = txt;
+        textArea1.setText(txt);
+        textArea1.setCaretPosition(0);
+        return txt;
     }
 
     public ConvertConfig getConvertConfig() {
@@ -404,51 +604,6 @@ public class MainForm extends JFrame {
         config.setColsList(arr);
 
         return config;
-    }
-
-    public String generate(String action) {
-        ConvertConfig convertConfig = getConvertConfig();
-        Generator g = new Generator(convertConfig);
-        String txt = "";
-
-        if (StrUtil.endsWithAnyIgnoreCase(action, "entity")) {
-            setTitle(winTitle + convertConfig.getClassName() + "Entity");
-        }
-        if (StrUtil.endsWithAnyIgnoreCase(action, "mapper")) {
-            setTitle(winTitle + convertConfig.getClassName() + "Mapper");
-        }
-        if (StrUtil.endsWithAnyIgnoreCase(action, "xml")) {
-            setTitle(winTitle + convertConfig.getClassName() + "Mapper.xml");
-        }
-        if (StrUtil.endsWithAnyIgnoreCase(action, "controller")) {
-            setTitle(winTitle + convertConfig.getClassName() + "Controller");
-        }
-        if (StrUtil.endsWithAnyIgnoreCase(action, "service")) {
-            setTitle(winTitle + convertConfig.getClassName() + "Service");
-        }
-        if (StrUtil.endsWithAnyIgnoreCase(action, "vueform")) {
-            setTitle(winTitle + getClassNameLower(convertConfig.getClassName()) + "Form.vue");
-        }
-        if (StrUtil.endsWithAnyIgnoreCase(action, "vuelist")) {
-            setTitle(winTitle + getClassNameLower(convertConfig.getClassName()) + "List.vue");
-        }
-
-        String ext = ".txt";
-        boolean b = TemplateLoader.testReadTemplateFile(action + ".fm");
-        if (b) {
-            ext = ".fm";
-        }
-        b = TemplateLoader.testReadTemplateFile(action + ".th");
-        if (b) {
-            ext = ".th";
-        }
-
-        txt = g.genCode(action + ext);
-
-        originalStr = txt;
-        textArea1.setText(txt);
-        textArea1.setCaretPosition(0);
-        return txt;
     }
 
     public String getClassNameLower(String className) {

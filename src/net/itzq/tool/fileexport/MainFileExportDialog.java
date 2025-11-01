@@ -178,8 +178,8 @@ public class MainFileExportDialog extends JDialog {
     }
 
     private void addAllChildren(VirtualFile vf, Map<String, VirtualFile> fileMap, List<VirtualFile> hasDirectory, int deep) {
-        if (deep > 15) {
-            Messages.showErrorDialog(this, "错误！当前递归深度超过限制（15），目录检索已停止", "错误");
+        if (deep > 10) {
+            Messages.showErrorDialog(this, "错误！当前递归深度超过限制（10），目录检索已停止", "错误");
             return;
         }
         deep++;

@@ -20,14 +20,14 @@ public class FreemarkerBuilder extends AbstractBuilder {
     @Override
     public String convert() {
 
-        Map context = new LinkedHashMap();
+        Map params = new LinkedHashMap();
 
         for (Map.Entry<Var, Object> entry : variable.entrySet()) {
             String key = entry.getKey().getKey();
-            context.put(key, entry.getValue());
+            params.put(key, entry.getValue());
         }
 
-        String processedTemplate = FreemarkerProcess.process(getTemplateFileName(), context);
+        String processedTemplate = FreemarkerProcess.processTemplate(getTemplateContent(), params);
         return processedTemplate;
     }
 }

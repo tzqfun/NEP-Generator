@@ -1,7 +1,6 @@
 package net.itzq.tool.mybatisgenerator;
 
 import net.itzq.tool.mybatisgenerator.builder.*;
-import org.apache.commons.lang3.StringUtils;
 import org.reflections.Reflections;
 
 import java.io.PrintWriter;
@@ -26,7 +25,7 @@ public class Generator {
     public Generator(ConvertConfig convertConfig) {
         this.config = convertConfig;
 
-        Reflections reflections = new Reflections("net.itzq.tool.mybatisgenerator.builder");
+        Reflections reflections = new Reflections("net.itzq.tool.mybatis_generator.builder");
         Set<Class<? extends AbstractBuilder>> allClasses = reflections.getSubTypesOf(AbstractBuilder.class);
         for (Class<? extends AbstractBuilder> clazz : allClasses) {
             try {
@@ -39,40 +38,15 @@ public class Generator {
         }
     }
 
-    public String genCode(String templateName) {
+    public String genCode(String templateGroupDirName, String templateFileName, String templateContent) {
         try {
-            templateName = templateName.trim();
+
             List<Map<String, String>> colsList = config.getColsList();
-            AbstractBuilder builder = null;
+            AbstractBuilder builder = new FreemarkerBuilder();
 
-            if (StringUtils.endsWithIgnoreCase(templateName, ".th")) {
-                builder = new ThymeleafBuilder();
-            } else if (StringUtils.endsWithIgnoreCase(templateName, ".fm")) {
-                builder = new FreemarkerBuilder();
-            } else if (StringUtils.endsWithIgnoreCase(templateName, ".txt")) {
 
-                String builderName = "";
-                if (StringUtils.endsWithIgnoreCase(templateName, "xml.txt")) {
-                    builderName = "xml.txt";
-                }
-                if (StringUtils.endsWithIgnoreCase(templateName, "mapper.txt")) {
-                    builderName = "mapper.txt";
-                }
-                if (StringUtils.endsWithIgnoreCase(templateName, "entity.txt")) {
-                    builderName = "entity.txt";
-                }
-
-                Class<? extends AbstractBuilder> clazz = builderMap.get(builderName);
-                if (clazz != null) {
-                    builder = clazz.getDeclaredConstructor().newInstance();
-                }
-            }
-
-            if (builder == null) {
-                builder = new SimpleTextBuilder();
-            }
-
-            builder.setTemplateFileName(templateName);
+            builder.setTemplateFileName(templateFileName);
+            builder.setTemplateContent(templateContent);
 
             builder.column(colsList);
             builder.className(config.getClassName());
