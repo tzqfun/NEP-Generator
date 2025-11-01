@@ -1,9 +1,5 @@
 package net.itzq.tool.mybatisgenerator.gui;
 
-import com.intellij.database.model.DasColumn;
-import com.intellij.database.psi.DbTable;
-import com.intellij.database.util.DasUtil;
-import com.intellij.ide.util.PackageChooserDialog;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
@@ -11,20 +7,24 @@ import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import net.itzq.tool.mybatisgenerator.TemplateLoader;
+import net.itzq.tool.mybatisgenerator.util.CrossPlatformAppDataUtil;
+import net.itzq.tool.mybatisgenerator.util.StrUtil;
+import com.intellij.database.model.DasColumn;
+import com.intellij.database.psi.DbTable;
+import com.intellij.database.util.DasUtil;
+import com.intellij.ide.util.PackageChooserDialog;
+import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiPackage;
 import com.intellij.util.containers.JBIterable;
 import net.itzq.tool.mybatisgenerator.ConvertConfig;
 import net.itzq.tool.mybatisgenerator.DataConvert;
 import net.itzq.tool.mybatisgenerator.Generator;
-import net.itzq.tool.mybatisgenerator.TemplateLoader;
-import net.itzq.tool.mybatisgenerator.util.CrossPlatformAppDataUtil;
-import net.itzq.tool.mybatisgenerator.util.StrUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
@@ -543,23 +543,31 @@ public class MainForm extends JFrame {
             setTitle(winTitle + getClassNameLower(convertConfig.getClassName()) + "List.vue");
         }
 
-        String TemplateFileName = action + ".txt";
+        String templateFileName = action + ".txt";
 
         String templateContent = null;
         try {
-            templateContent = TemplateLoader.readLocalTemplateFile(templateGroupDirName, TemplateFileName);
+
+            String dataPath = CrossPlatformAppDataUtil.getOrCreateAppDataPathDefault(templateGroupDirName);
+            if (editMode){
+                editFilePath = dataPath + "/" + templateFileName;
+            }
+
+            templateContent = TemplateLoader.readLocalTemplateFile(templateGroupDirName, templateFileName);
 
             if (StringUtils.isNotBlank(templateContent)) {
-
                 if (editMode) {
                     txt = templateContent;
-                    String dataPath = CrossPlatformAppDataUtil.getOrCreateAppDataPathDefault(templateGroupDirName);
-                    editFilePath = dataPath + "/" + TemplateFileName;
                 } else {
-                    txt = g.genCode(templateGroupDirName, TemplateFileName, templateContent);
+                    txt = g.genCode(templateGroupDirName, templateFileName, templateContent);
                 }
             } else {
-                txt = "IO错误：模版为空";
+                if (editMode){
+                    txt = ">>> "+templateFileName;
+                }else {
+                    txt = "IO错误：模版为空";
+                }
+
             }
 
         } catch (IOException e) {
